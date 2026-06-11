@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense & Budget Visualizer</title>
+    <style>
+        :root {
+            --bg: #f4f4f4;
+            --text: #222;
+            --card: #ffffff;
+            --border: #ccc;
+            --input-bg: #fff;
+            --btn-bg: #4a90e2;
+            --btn-text: #fff;
+            --table-head: #f0f4fa;
+            --table-row-alt: #fafafa;
+            --overlay-bg: rgba(0,0,0,0.45);
+        }
+        body.dark {
+            --bg: #121212;
+            --text: #ffffff;
+            --card: #1e1e1e;
+            --border: #444;
+            --input-bg: #2a2a2a;
+            --btn-bg: #5ba3f5;
+            --btn-text: #fff;
+            --table-head: #252525;
+            --table-row-alt: #242424;
+            --overlay-bg: rgba(0,0,0,0.65);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            transition: background 0.4s ease, color 0.4s ease;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 16px 60px;
+        }
+
+        /* Header */
+        .header {
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .header h1 { font-size: 1.4rem; }
+
+        /* Card */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card h3 { font-size: 1.1rem; margin-bottom: 16px; }
+
+        /* Balance */
+        .balance-row { display: flex; gap: 16px; flex-wrap: wrap; }
+        .balance-box {
+            flex: 1;
+            min-width: 140px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 18px;
+        }
+        .balance-box .label {
+            font-size: 0.78rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .balance-box .value { font-size: 1.5rem; font-weight: bold; }
+
+        /* Form grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full { grid-column: 1 / -1; }
+        .form-group label { font-size: 0.875rem; margin-bottom: 6px; opacity: 0.8; }
+        .form-group input,
+        .form-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus { outline: none; border-color: var(--btn-bg); }
+
+        /* Category row */
+        .cat-select-row { display: flex; gap: 8px; align-items: center; }
+        .cat-select-row select { flex: 1; }
+        .btn-icon {
+            width: 40px; height: 40px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .btn-icon:hover { background: var(--table-head); border-color: var(--btn-bg); }
+
+
+
+        /* Submit */
+        .btn-submit {
+            width: 100%;
+            padding: 11px;
+            background: var(--btn-bg);
+            color: var(--btn-text);
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: opacity 0.2s;
+        }
+        .btn-submit:hover { opacity: 0.85; }
+
+        /* History header */
+        .history-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+        .history-header h3 { font-size: 1.1rem; }
+        .btn-clear {
+            padding: 6px 14px;
+            border: 1px solid #e74c3c;
+            border-radius: 8px;
+            background: transparent;
+            color: #e74c3c;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .btn-clear:hover { background:#e74c3c; color:#fff; }
+        .transaction-count { font-size:0.8rem; opacity:0.55; margin-bottom:12px; }
+
+        /* Table */
+        .history-table-wrapper { overflow-x:auto; border-radius:8px; border:1px solid var(--border); }
+        .history-table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+        .history-table thead tr { background: var(--table-head); }
+        .history-table th {
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.7;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        .history-table td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+        .history-table tbody tr:last-child td { border-bottom:none; }
+        .history-table tbody tr:nth-child(even) { background: var(--table-row-alt); }
+        .history-table tbody tr:hover { background: var(--table-head); }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .badge-category { background:#eaf1fb; color:#4a90e2; }
+        body.dark .badge-category { background:#1a2a3d; color:#5ba3f5; }
+
+        .amount-color { color: var(--btn-bg); font-weight: bold; }
+
+        .btn-delete {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: #aaa;
+            font-size: 1rem;
+            padding: 4px 6px;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
+        }
+        .btn-delete:hover { color:#e74c3c; background:#fdecea; }
+        body.dark .btn-delete:hover { background:#3d1a1a; }
+
+        .empty-state { text-align:center; padding:32px 0; opacity:0.45; font-size:0.95rem; }
+        .empty-state .empty-icon { font-size:2.5rem; margin-bottom:8px; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: var(--overlay-bg);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px 28px 24px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            margin: 16px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 { font-size: 1.1rem; }
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: var(--text);
+            opacity: 0.5;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: opacity 0.2s, background 0.2s;
+        }
+        .btn-close:hover { opacity:1; background: var(--table-head); }
+
+        /* Add category row */
+        .add-cat-row { display:flex; gap:8px; margin-bottom:18px; }
+        .add-cat-row input {
+            flex: 1;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        .add-cat-row input:focus { outline:none; border-color: var(--btn-bg); }
+        .btn-add-cat {
+            padding: 9px 16px;
+            background: var(--btn-bg);
+            color: var(--btn-text);
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+        .btn-add-cat:hover { opacity: 0.85; }
+
+        /* Category list in modal */
+        .cat-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .cat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .cat-item-left { display:flex; align-items:center; gap:8px; }
+        .cat-name { font-size: 0.95rem; }
+        .cat-default { font-size:0.72rem; opacity:0.4; }
+        .btn-del-cat {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: #aaa;
+            font-size: 1rem;
+            padding: 3px 7px;
+            border-radius: 6px;
+            transition: color 0.2s, background 0.2s;
+        }
+        .btn-del-cat:hover { color:#e74c3c; background:#fdecea; }
+        body.dark .btn-del-cat:hover { background:#3d1a1a; }
+        .cat-empty { font-size:0.88rem; opacity:0.45; text-align:center; padding:16px 0; }
+
+        /* Theme toggle */
+        .theme-toggle {
+            width:80px; height:40px;
+            border:none; border-radius:50px;
+            cursor:pointer; position:relative;
+            background:#ddd; transition:background 0.4s;
+            overflow:hidden; flex-shrink:0;
+        }
+        body.dark .theme-toggle { background:#333; }
+        .icon {
+            width:32px; height:32px;
+            background:#fff; border-radius:50%;
+            position:absolute; top:4px; left:4px;
+            display:flex; justify-content:center; align-items:center;
+            font-size:18px;
+            transition: left 0.4s cubic-bezier(0.68,-0.55,0.27,1.55),
+                        transform 0.4s cubic-bezier(0.68,-0.55,0.27,1.55);
+        }
+        body.dark .icon { left:44px; transform:rotate(360deg); }
+        .sun, .moon { position:absolute; transition:opacity 0.4s, transform 0.4s; }
+        .moon { opacity:0; transform:scale(0); }
+        body.dark .moon { opacity:1; transform:scale(1); }
+        body.dark .sun  { opacity:0; transform:scale(0); }
+
+        /* Pie Chart */
+        .chart-card { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+        .chart-canvas-wrap {
+            flex-shrink: 0;
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+        canvas#pie-chart { width: 200px; height: 200px; }
+        .chart-legend {
+            flex: 1;
+            min-width: 160px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.88rem;
+        }
+        .legend-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .legend-label { flex: 1; }
+        .legend-count { font-size: 0.8rem; opacity: 0.6; }
+        .legend-pct   { font-weight: bold; opacity: 0.75; min-width: 44px; text-align: right; }
+        .chart-empty {
+            text-align: center;
+            width: 100%;
+            padding: 28px 0;
+            opacity: 0.4;
+            font-size: 0.92rem;
+        }
+
+        @media (max-width: 480px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-group.full { grid-column: 1; }
+            .chart-card { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>💰 Expense &amp; Budget Visualizer</h1>
+        <button class="theme-toggle" id="toggle" aria-label="Toggle dark mode">
+            <div class="icon">
+                <span class="sun">☀️</span>
+                <span class="moon">🌙</span>
+            </div>
+        </button>
+    </div>
+
+    <!-- Balance Summary -->
+    <div class="card">
+        <div class="balance-row">
+            <div class="balance-box">
+                <div class="label">Total Balance</div>
+                <div class="value" id="balance-display">Rp 0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Transaction -->
+    <div class="card">
+        <h3>➕ Add Transaction</h3>
+        <div class="form-grid">
+
+            <div class="form-group">
+                <label for="item-name">Nama Barang</label>
+                <input type="text" id="item-name" placeholder="e.g. Makan siang">
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount (Rp)</label>
+                <input type="number" id="amount" placeholder="e.g. 50000" min="1">
+            </div>
+
+            <!-- Kategori + tombol kelola -->
+            <div class="form-group full">
+                <label for="category">Kategori</label>
+                <div class="cat-select-row">
+                    <select id="category"></select>
+                    <button class="btn-icon" id="btn-open-cat" title="Kelola Kategori">🏷️</button>
+                </div>
+            </div>
+
+            <div class="form-group full">
+                <button class="btn-submit" id="btn-add">Add Transaction</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction History -->
+    <div class="card">
+        <div class="history-header">
+            <h3>📋 Transaction History</h3>
+            <button class="btn-clear" id="btn-clear">🗑</button>
+        </div>
+        <div class="transaction-count" id="transaction-count">0 transaksi</div>
+        <div class="history-table-wrapper">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Nama Barang</th>
+                        <th>Kategori</th>
+                        <th>Tanggal &amp; Waktu</th>
+                        <th>Amount</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody">
+                    <tr id="empty-row">
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-icon">🧾</div>
+                                <div>Belum ada transaksi. Tambahkan transaksi pertama kamu!</div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pie Chart: Distribusi per Kategori -->
+    <div class="card">
+        <h3>🥧 Distribusi Transaksi per Kategori</h3>
+        <div class="chart-card">
+            <p class="chart-empty" id="chart-empty">Belum ada data transaksi untuk ditampilkan.</p>
+            <div class="chart-canvas-wrap" id="chart-canvas-wrap" style="display:none;">
+                <canvas id="pie-chart" width="200" height="200"></canvas>
+            </div>
+            <div class="chart-legend" id="chart-legend" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Modal: Kelola Kategori -->
+    <div class="modal-overlay" id="cat-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">🏷️ Kelola Kategori</h3>
+                <button class="btn-close" id="btn-close-modal" aria-label="Tutup">✕</button>
+            </div>
+
+            <div class="add-cat-row">
+                <input type="text" id="new-cat-input" placeholder="Nama kategori baru..." maxlength="30">
+                <button class="btn-add-cat" id="btn-save-cat">+ Tambah</button>
+            </div>
+
+            <div class="cat-list" id="cat-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // ── Theme ─────────────────────────────────────────────────
+        const toggle = document.getElementById("toggle");
+        toggle.addEventListener("click", () => {
+            document.body.classList.toggle("dark");
+            localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
+        });
+        if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
+
+        // ── Constants & State ─────────────────────────────────────
+        const DEFAULT_CATEGORIES = ["Shopping", "Food", "Fun", "Traveling", "Lainnya"];
+
+        let categories   = JSON.parse(localStorage.getItem("ev_categories")) || [...DEFAULT_CATEGORIES];
+        let transactions = [];
+        let nextId       = 1;
+
+        // ── Elements ──────────────────────────────────────────────
+        const balanceDisplay = document.getElementById("balance-display");
+        const btnAdd         = document.getElementById("btn-add");
+        const btnClear       = document.getElementById("btn-clear");
+        const inputName      = document.getElementById("item-name");
+        const inputAmount    = document.getElementById("amount");
+        const selectCategory = document.getElementById("category");
+        const historyTbody   = document.getElementById("history-tbody");
+        const emptyRow       = document.getElementById("empty-row");
+        const txCount        = document.getElementById("transaction-count");
+
+        const catModal      = document.getElementById("cat-modal");
+        const btnOpenCat    = document.getElementById("btn-open-cat");
+        const btnCloseModal = document.getElementById("btn-close-modal");
+        const catListEl     = document.getElementById("cat-list");
+        const newCatInput   = document.getElementById("new-cat-input");
+        const btnSaveCat    = document.getElementById("btn-save-cat");
+
+        // ── Helpers ───────────────────────────────────────────────
+        function esc(str) {
+            return String(str)
+                .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        }
+        function formatRupiah(n) {
+            return "Rp " + Math.abs(n).toLocaleString("id-ID");
+        }
+        function formatDateTime() {
+            const now = new Date();
+            return now.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})
+                 + " " + now.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});
+        }
+        function saveCategories() {
+            localStorage.setItem("ev_categories", JSON.stringify(categories));
+        }
+
+        // ── Render: dropdown kategori ─────────────────────────────
+        function renderCategorySelect(selectValue) {
+            const current = selectValue ?? selectCategory.value;
+            selectCategory.innerHTML = "";
+            categories.forEach(cat => {
+                const opt = document.createElement("option");
+                opt.value = cat;
+                opt.textContent = cat;
+                selectCategory.appendChild(opt);
+            });
+            if (categories.includes(current)) selectCategory.value = current;
+        }
+
+        // ── Render: daftar kategori di modal ──────────────────────
+        function renderCatList() {
+            catListEl.innerHTML = "";
+            if (categories.length === 0) {
+                catListEl.innerHTML = '<p class="cat-empty">Belum ada kategori.</p>';
+                return;
+            }
+            categories.forEach(cat => {
+                const isDefault = DEFAULT_CATEGORIES.includes(cat);
+                const div = document.createElement("div");
+                div.className = "cat-item";
+                div.innerHTML = `
+                    <div class="cat-item-left">
+                        <span class="cat-name">${esc(cat)}</span>
+                        ${isDefault ? '<span class="cat-default">(default)</span>' : ''}
+                    </div>
+                    <button class="btn-del-cat"
+                        data-cat="${esc(cat)}"
+                        title="Hapus kategori"
+                        ${isDefault ? 'disabled style="opacity:0.2;cursor:not-allowed;"' : ''}>
+                        ✕
+                    </button>
+                `;
+                catListEl.appendChild(div);
+            });
+
+            catListEl.querySelectorAll(".btn-del-cat:not([disabled])").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const cat = btn.dataset.cat;
+                    if (!confirm(`Hapus kategori "${cat}"?`)) return;
+                    categories = categories.filter(c => c !== cat);
+                    saveCategories();
+                    renderCategorySelect();
+                    renderCatList();
+                });
+            });
+        }
+
+        // ── Render: tabel history ─────────────────────────────────
+        function render() {
+            let total = 0;
+            transactions.forEach(t => { total += t.amount; });
+
+            balanceDisplay.textContent = formatRupiah(total);
+            balanceDisplay.style.color = "";
+            txCount.textContent        = transactions.length + " transaksi";
+
+            historyTbody.querySelectorAll("tr:not(#empty-row)").forEach(r => r.remove());
+
+            if (transactions.length === 0) {
+                emptyRow.style.display = "";
+                renderPieChart();
+                return;
+            }
+
+            emptyRow.style.display = "none";
+            const count = transactions.length;
+
+            transactions.slice().reverse().forEach((t, idx) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td style="opacity:0.5;font-size:0.82rem;">${count - idx}</td>
+                    <td><strong>${esc(t.name)}</strong></td>
+                    <td><span class="badge badge-category">${esc(t.category)}</span></td>
+                    <td style="font-size:0.82rem;opacity:0.7;white-space:nowrap;">${t.datetime}</td>
+                    <td class="amount-color">+${formatRupiah(t.amount)}</td>
+                    <td><button class="btn-delete" data-id="${t.id}" title="Hapus">✕</button></td>
+                `;
+                historyTbody.appendChild(tr);
+            });
+
+            historyTbody.querySelectorAll(".btn-delete").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    transactions = transactions.filter(t => t.id !== parseInt(btn.dataset.id));
+                    render();
+                });
+            });
+
+            renderPieChart();
+        }
+
+        // ── Pie Chart ─────────────────────────────────────────────
+        const CHART_COLORS = [
+            "#4a90e2","#27ae60","#e74c3c","#f39c12","#9b59b6",
+            "#1abc9c","#e67e22","#2980b9","#8e44ad","#16a085",
+            "#d35400","#c0392b","#2ecc71","#3498db","#f1c40f"
+        ];
+
+        const pieCanvas   = document.getElementById("pie-chart");
+        const chartEmpty  = document.getElementById("chart-empty");
+        const chartWrap   = document.getElementById("chart-canvas-wrap");
+        const chartLegend = document.getElementById("chart-legend");
+
+        function renderPieChart() {
+            if (transactions.length === 0) {
+                chartEmpty.style.display  = "block";
+                chartWrap.style.display   = "none";
+                chartLegend.style.display = "none";
+                return;
+            }
+
+            // Hitung JUMLAH TRANSAKSI per kategori
+            const counts = {};
+            transactions.forEach(t => {
+                counts[t.category] = (counts[t.category] || 0) + 1;
+            });
+            const entries    = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            const totalCount = transactions.length;
+
+            chartEmpty.style.display  = "none";
+            chartWrap.style.display   = "block";
+            chartLegend.style.display = "flex";
+
+            // ── Gambar canvas ──────────────────────────────────────
+            const ctx    = pieCanvas.getContext("2d");
+            const size   = 200;
+            const cx = size / 2, cy = size / 2;
+            const rOuter = size / 2 - 4;
+            const rInner = rOuter * 0.45;          // lubang donut
+            const isDark  = document.body.classList.contains("dark");
+            const gapColor = isDark ? "#1e1e1e" : "#ffffff";
+
+            ctx.clearRect(0, 0, size, size);
+
+            let startAngle = -Math.PI / 2;
+            entries.forEach(([, count], i) => {
+                const slice = (count / totalCount) * 2 * Math.PI;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, rOuter, startAngle, startAngle + slice);
+                ctx.closePath();
+                ctx.fillStyle   = CHART_COLORS[i % CHART_COLORS.length];
+                ctx.fill();
+                ctx.strokeStyle = gapColor;
+                ctx.lineWidth   = 2;
+                ctx.stroke();
+                startAngle += slice;
+            });
+
+            // Lubang tengah
+            ctx.beginPath();
+            ctx.arc(cx, cy, rInner, 0, 2 * Math.PI);
+            ctx.fillStyle = gapColor;
+            ctx.fill();
+
+            // Teks tengah: jumlah total
+            ctx.textAlign    = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle    = isDark ? "#ffffff" : "#222222";
+            ctx.font         = "bold 26px Arial";
+            ctx.fillText(totalCount, cx, cy - 9);
+            ctx.font         = "11px Arial";
+            ctx.globalAlpha  = 0.55;
+            ctx.fillText("transaksi", cx, cy + 13);
+            ctx.globalAlpha  = 1;
+
+            // ── Legend ─────────────────────────────────────────────
+            chartLegend.innerHTML = "";
+            entries.forEach(([cat, count], i) => {
+                const pct  = ((count / totalCount) * 100).toFixed(1);
+                const item = document.createElement("div");
+                item.className = "legend-item";
+                item.innerHTML = `
+                    <span class="legend-dot"  style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
+                    <span class="legend-label">${esc(cat)}</span>
+                    <span class="legend-count">${count}x</span>
+                    <span class="legend-pct">${pct}%</span>
+                `;
+                chartLegend.appendChild(item);
+            });
+        }
+
+        // ── Add Transaction ───────────────────────────────────────
+        btnAdd.addEventListener("click", () => {
+            const name      = inputName.value.trim();
+            const rawAmount = parseFloat(inputAmount.value);
+            const category  = selectCategory.value;
+
+            if (!name) { alert("Nama barang tidak boleh kosong."); inputName.focus(); return; }
+            if (isNaN(rawAmount) || rawAmount <= 0) { alert("Masukkan jumlah amount yang valid (lebih dari 0)."); inputAmount.focus(); return; }
+
+            transactions.push({ id: nextId++, name, amount: rawAmount, category, datetime: formatDateTime() });
+            render();
+
+            inputName.value   = "";
+            inputAmount.value = "";
+            inputName.focus();
+        });
+        inputAmount.addEventListener("keydown", e => { if (e.key === "Enter") btnAdd.click(); });
+
+        // ── Clear All ─────────────────────────────────────────────
+        btnClear.addEventListener("click", () => {
+            if (transactions.length === 0) return;
+            if (confirm("Hapus semua transaksi? Tindakan ini tidak bisa dibatalkan.")) {
+                transactions = [];
+                render();
+            }
+        });
+
+        // ── Modal: buka & tutup ───────────────────────────────────
+        btnOpenCat.addEventListener("click", () => {
+            renderCatList();
+            catModal.classList.add("open");
+            newCatInput.focus();
+        });
+        function closeModal() {
+            catModal.classList.remove("open");
+            newCatInput.value = "";
+        }
+        btnCloseModal.addEventListener("click", closeModal);
+        catModal.addEventListener("click", e => { if (e.target === catModal) closeModal(); });
+        document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+        // ── Modal: tambah kategori ────────────────────────────────
+        function addCategory() {
+            const name = newCatInput.value.trim();
+            if (!name) { newCatInput.focus(); return; }
+            if (categories.map(c => c.toLowerCase()).includes(name.toLowerCase())) {
+                alert(`Kategori "${name}" sudah ada.`);
+                newCatInput.select();
+                return;
+            }
+            categories.push(name);
+            saveCategories();
+            renderCategorySelect(name);
+            renderCatList();
+            newCatInput.value = "";
+            newCatInput.focus();
+        }
+        btnSaveCat.addEventListener("click", addCategory);
+        newCatInput.addEventListener("keydown", e => { if (e.key === "Enter") addCategory(); });
+
+        // ── Init ──────────────────────────────────────────────────
+        renderCategorySelect();
+        render();
+        renderPieChart();
+    </script>
+
+</body>
+</html>
